@@ -13,6 +13,7 @@ import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +21,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static com.hmdp.utils.RedisConstants.*;
@@ -120,6 +118,46 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         stringRedisTemplate.opsForValue().setBit(key, dayOfMonth - 1, true);  // 0 代表 1 号
         // 6. 返回
         return Result.ok();
+    }
+
+    @Override
+    public Result signCount() {
+        // 1. 获取当前用户
+        Long userId = UserHolder.getUser().getId();
+        // 2. 获取日期
+        LocalDateTime now = LocalDateTime.now();
+        // 3. 拼接 key
+        String keySuffix = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));  // 202306
+        String key = USER_SIGN_KEY + userId + keySuffix;  // sign:1:202306
+        // 4. 获取今天是本月的第几天
+        int dayOfMonth = now.getDayOfMonth();  // 1~31
+        // 5. 获取本月截止今天为止的所有签到记录，返回的是一个十进制的数字 BITFIELD sign:1:202306 GET u14 0
+        List<Long> result = stringRedisTemplate.opsForValue().bitField(
+                key,
+                BitFieldSubCommands.create().get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0)
+        );
+        if (result == null || result.isEmpty()) {
+            return Result.ok();
+        }
+        Long num = result.get(0);
+        if (num == null || num == 0) {
+            return Result.ok();
+        }
+        // 6. 循环遍历
+        int count = 0;
+        while(true){
+            // 6.1. 让这个数字与 1 做与运算，得到数字的最后一位
+            //      如果这个数字的最后一位是 0，说明未签到，结束
+            //      如果这个数字的最后一位是 1，说明已签到，计数器 +1
+            // 6.2. 把这个数字右移一位，继续第 6.1 步骤，直到遇到 0 为止
+            if((num & 1) == 0){
+                break;
+            }else{
+                count++;
+            }
+            num >>>= 1;  // 无符号右移
+        }
+        return Result.ok(count);
     }
 
     private User createUserWithPhone(String phone) {
