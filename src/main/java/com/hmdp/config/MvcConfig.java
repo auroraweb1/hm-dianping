@@ -17,6 +17,7 @@ public class MvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // order 属性：拦截器执行顺序，数值越小优先执行
         // 登录拦截器：拦截部分请求
         registry.addInterceptor(new LoginInterceptor())
                 .excludePathPatterns(
@@ -29,7 +30,7 @@ public class MvcConfig implements WebMvcConfigurer {
                         "/user/login" // 排除登录接口
                 )
                 .order(1);
-        // 刷新拦截器：拦截所有请求
+        // 刷新拦截器：拦截所有请求，在登录拦截器之前执行，刷新 token 有效期
         registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate))
                 .addPathPatterns("/**")
                 .order(0);

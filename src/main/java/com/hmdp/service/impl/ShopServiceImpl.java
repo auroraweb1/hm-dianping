@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 
-import java.time.LocalDateTime;
+import java.time.LocalDateTime; 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -43,16 +43,16 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     @Override
     public Result queryById(Long id) {
         // 缓存穿透
-        Shop shop = queryWithPassThrough(id);
+        // Shop shop = queryWithPassThrough(id);
         // 缓存穿透：使用工具类
         // Shop shop = cacheClient
         //         .queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
         // 缓存击穿：互斥锁解决
-        // Shop shop = queryWithMutex(id);
-        // if(shop == null) {
-        //     // 如果查询结果为null，返回错误
-        //     return Result.fail("店铺不存在");
-        // }
+        Shop shop = queryWithMutex(id);
+        if(shop == null) {
+            // 如果查询结果为null，返回错误
+            return Result.fail("店铺不存在");
+        }
         // 缓存击穿：逻辑过期解决
         // Shop shop = queryWithLogicalExpire(id);
         // 缓存击穿：使用工具类
@@ -136,7 +136,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             // 3. 不存在，直接返回错误
             return null;
         }
-        // 4. 命中，先把json反序列化为RedisData对象
+        // 4. 命中，先把 json 反序列化为 RedisData 对象
         RedisData redisData = JSONUtil.toBean(shopJson, RedisData.class);
         Shop shop = JSONUtil.toBean((JSONObject) redisData.getData(), Shop.class);
         LocalDateTime expireTime = redisData.getExpireTime();
@@ -189,7 +189,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         }
         // 4. 不存在，根据id查询数据库
         Shop shop = getById(id);
-        // 5. 不存在，返回错误
+        // 5. 不存在，写入空值到redis，防止缓存穿透
         if(shop == null) {
             // 将空值写入redis，防止缓存穿透
             stringRedisTemplate.opsForValue().set(key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);

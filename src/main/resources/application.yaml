@@ -20,6 +20,23 @@ spring:
         time-between-eviction-runs: 10s
   jackson:
     default-property-inclusion: non_null # JSON处理时忽略非空字段
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      # 生产者：把我们要发的 JSON 字符串当成普通 String 处理
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # 确认机制：all 代表所有的副本都收到消息才算成功，保证消息绝对不丢
+      acks: all
+    consumer:
+      group-id: seckill-group
+      # 【关键】：关闭自动提交，防止业务报错但消息被当成已消费
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      # 【关键】：设置手动调用 ack.acknowledge() 时立即提交
+      ack-mode: manual_immediate
 mybatis-plus:
   type-aliases-package: com.hmdp.entity # 别名扫描包
 logging:
