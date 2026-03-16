@@ -88,7 +88,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
 
         // 3. Lua 执行成功，准备发送 Kafka 消息
-        // 注：请确保你的项目中已经创建了 VoucherOrderDTO 类
         VoucherOrderDTO orderDTO = new VoucherOrderDTO(userId, voucherId, orderId);
         String jsonMessage = JSON.toJSONString(orderDTO);
 
